@@ -3,7 +3,9 @@ import PropTypes from 'prop-types';
 import SoundCloudAudio from 'soundcloud-audio';
 import ClassNames from 'classnames';
 
+
 class Progress extends Component {
+ 
   handleSeekTrack(e) {
     const { onSeekTrack, soundCloudAudio } = this.props;
     const xPos = (e.pageX - e.currentTarget.getBoundingClientRect().left) / e.currentTarget.offsetWidth;
@@ -41,8 +43,9 @@ class Progress extends Component {
     innerStyle = Object.assign({}, innerStyle, {width: `${value}%`});
 
     return (
-      <div className={classNames} style={style} onClick={::this.handleSeekTrack}>
+      <div className={classNames} style={style} onClick={this.handleSeekTrack}>
         <div className={innerClassNames} style={innerStyle} />
+          {this.props.children}
       </div>
     );
   }
@@ -58,7 +61,10 @@ Progress.propTypes = {
 };
 
 Progress.defaultProps = {
-  value: 0
+  value: 0,
+  src:""
 };
+
+
 
 export default Progress;

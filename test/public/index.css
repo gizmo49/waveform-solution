@@ -309,3 +309,7 @@
 .ff-audio .timer {
     margin-left: 20px;
 }
+
+.bg-lon{
+    background: linear-gradient(90deg, #b74dc3, #6610ff);
+}
