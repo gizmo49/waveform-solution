@@ -1,8 +1,10 @@
 import React, { Component } from 'react';
 import ReactHowler from 'react-howler';
 import PropTypes from 'prop-types';
-import { PlayButton } from 'react-soundplayer/components';
+import { PlayButton, Timer} from 'react-soundplayer/components';
 import AudioPlayer from './AudioPlayer';
+import axios from 'axios';
+import Waveform from "react-audio-waveform";
 
 const DEFAULT_DURATION = 456.1495; // have to use this become modifying the audio file breaks 2x speed
 const DEFAULT_MP3 = "https://parse-server-ff.s3.amazonaws.com/ae5992f0f5bb1f259bafa41b3771e3bb_call12565815456dwwwwww795896232www-01b59bd3.mp3";
@@ -14,11 +16,13 @@ class Container extends Component {
             playing: false,
             currentTime: 0,
             speedup: false,
-            loadErr: false
+            loadErr: false,
+            buffer: []
         };
     }
 
     seek(secs, play) {
+        console.log(secs);
         if (secs && secs.seek != null) secs = secs.seek();
         this.player.seek(secs);
         let toSet = { currentTime: secs };
@@ -40,8 +44,9 @@ class Container extends Component {
 
     getSeek() {
         if (this.playerInterval) clearInterval(this.playerInterval);
+        let { mp3url } = this.props;
+
         this.playerInterval = setInterval(() => {
-            let { mp3url } = this.props;
             if (this.player) {
                 let currentTime = this.player.seek();
                 const duration = mp3url == DEFAULT_MP3 ? DEFAULT_DURATION : this.player.duration();
@@ -58,6 +63,36 @@ class Container extends Component {
                 this.setState(toSet);
             }
         }, 250);
+
+        // NEw code form here
+        let audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+        
+        axios({url: mp3url, responseType: "arraybuffer"})
+            .then(response => {
+                var audioData = response.data;
+            
+                audioCtx.decodeAudioData(audioData, buffer => {
+                    let decodedAudioData = buffer.getChannelData(0);
+                    console.log(decodedAudioData);
+                    const NUMBER_OF_BUCKETS = 100; // number of "bars" the waveform should have
+                    let bucketDataSize = Math.floor(decodedAudioData.length / NUMBER_OF_BUCKETS,);
+                    let buckets = [];
+                    for (var i = 0; i < NUMBER_OF_BUCKETS; i++) {
+                        let startingPoint = i * bucketDataSize;
+                        let endingPoint = i * bucketDataSize + bucketDataSize;
+                        let max = 0;
+                        for (var j = startingPoint; j < endingPoint; j++) {
+                            if (decodedAudioData[j] > max) {
+                                max = decodedAudioData[j];
+                            }
+                        }
+                        let size = Math.abs(max);
+                        buckets.push(size / 2);
+                    }
+                    this.setState({buffer:buckets});
+                });
+            });
+
     }
 
     componentWillUnmount() {
@@ -101,14 +136,24 @@ class Container extends Component {
                         onSeekTrack={(ts) => this.seek(ts * duration)}
                     /> */}
                     <div className="flex-auto">
-                         <AudioPlayer audioFile={mp3url} playing={playing}/>
+                        <Waveform
+                            barWidth={4}
+                            peaks={this.state.buffer}
+                            height={100}
+                            pos={currentTime != null ? currentTime : 0}
+                            duration={duration}
+                            onClick={(sec) => this.seek(sec)}
+                            color="#676767"
+                            progressGradientColors={[[0, "#888"], [1, "#aaa"]]}
+                            />
                     </div>
 
-                    {/* <Timer
+                    <Timer
                         className={"timer"}
                         duration={duration} // in seconds
-                        currentTime={currentTime != null ? currentTime : 0} /> */}
+                        currentTime={currentTime != null ? currentTime : 0} />
                     </div> 
+                    
                 </div> : (loadErr ? <div style={{ padding: "5 20px" }}>Unable to load audio: {loadErr}</div> : <div className="progress"><div className="indeterminate" /></div>)}
                 <div>
                     <ReactHowler
